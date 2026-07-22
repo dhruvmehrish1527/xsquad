@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local data — cached FPL/match data and user state (team ID, weights, keys)
+fpl_optimizer.db
+
+# OS
+.DS_Store

@@ -1,0 +1,122 @@
+<style>
+  .pitch { background:linear-gradient(180deg,#2d8a4e 0%,#237a41 100%);
+           border-radius:12px; padding:22px 10px; margin-top:16px;
+           border:2px solid #1e6b38; }
+  .pitch-row { display:flex; justify-content:center; gap:12px; margin:14px 0; }
+  .pcard { background:rgba(26,29,36,.92); border-radius:8px; padding:8px 10px;
+           min-width:118px; text-align:center; position:relative;
+           border:1px solid rgba(255,255,255,.15); }
+  .pcard .nm { font-weight:700; font-size:13px; }
+  .pcard .meta { font-size:11px; color:#9aa1b3; margin-top:2px; }
+  .pcard .sc { color:#00ff87; font-weight:700; font-size:12px; margin-top:3px; }
+  .badge { position:absolute; top:-8px; right:-6px; background:#e90052; color:#fff;
+           font-size:10px; font-weight:800; border-radius:50%; width:20px; height:20px;
+           line-height:20px; }
+  .badge.vc { background:#3d5afe; }
+  .warn-flag { color:#ffb020; font-size:10px; }
+  .fm-na { color:#667; font-size:10px; }
+  .summary { display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:13px; }
+  .summary .stat { background:var(--card); border:1px solid var(--line);
+                   border-radius:8px; padding:8px 14px; }
+  .summary b { color:var(--accent); }
+  .bench { display:flex; gap:12px; margin-top:12px; justify-content:center;
+           background:var(--card); border-radius:10px; padding:12px;
+           border:1px dashed var(--line); }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:600; }
+  .gain-pos { color:#00ff87; font-weight:700; } .gain-neg { color:#ff6b81; }
+  .chip-rec { color:#00ff87; font-weight:700; } .chip-no { color:var(--dim); }
+  .violation { background:#5c1a24; border:1px solid #ff6b81; padding:10px;
+               border-radius:8px; margin-top:12px; }
+</style>
+
+<div class="summary">
+  <div class="stat">GW <b>{{ meta.gameweek }}</b></div>
+  <div class="stat">Formation <b>{{ formation_mode }}</b> → <b>{{ r.formation[0] }}-{{ r.formation[1] }}-{{ r.formation[2] }}</b></div>
+  <div class="stat">Cost <b>£{{ '%.1f' % (r.cost / 10) }}m</b> / £{{ '%.1f' % (budget / 10) }}m (bank £{{ '%.1f' % (remaining / 10) }}m)</div>
+  <div class="stat">Projected XI (C×2) <b>{{ r.xi_points }}</b></div>
+  <div class="stat">Ratings: <b>{{ meta.rating_status }}</b></div>
+</div>
+
+{% if over_cap %}<div class="violation">⚠ Club cap violated: {{ over_cap|join(', ') }}</div>{% endif %}
+{% if r.cost > budget %}<div class="violation">⚠ Budget exceeded!</div>{% endif %}
+
+<div class="summary" style="margin-top:8px">
+  {% for club, n in club_counts.items() %}<div class="stat" style="padding:4px 10px">{{ club }} <b>{{ n }}</b></div>{% endfor %}
+</div>
+
+{% macro card(p) %}
+  <div class="pcard">
+    {% if p.id == r.captain.id %}<div class="badge">C</div>
+    {% elif p.id == r.vice.id %}<div class="badge vc">V</div>{% endif %}
+    <div class="nm">{{ p.web_name }}</div>
+    <div class="meta">{{ p.team_name }} · {{ p.pos }} · £{{ '%.1f' % p.price }}m</div>
+    <div class="meta">vs {{ p.next_opp }} · form {{ p.form }}</div>
+    <div class="sc">{{ '%.2f' % p.score }} pts
+      {% if p.fotmob_rating %} · R {{ '%.2f' % p.fotmob_rating }}{% else %} · <span class="fm-na">R n/a</span>{% endif %}
+    </div>
+    {% if p.flag %}<div class="warn-flag">⚠ {{ p.flag[:44] }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+<div class="pitch">
+  {% if proj_pts is not none %}
+  <div style="text-align:center;margin:-6px 0 4px">
+    <span style="background:rgba(26,29,36,.92);border:1px solid rgba(255,255,255,.2);
+                 border-radius:20px;padding:6px 18px;font-size:14px;color:#e8eaf0">
+      Projected: <b style="color:#00ff87">~{{ proj_pts }} FPL pts</b>
+      <span style="color:#9aa1b3">±{{ proj_band }} (incl. captain ×2)</span>
+    </span>
+  </div>
+  {% endif %}
+  {% for et in [1,2,3,4] %}
+  <div class="pitch-row">
+    {% for p in r.xi if p.element_type == et %}{{ card(p) }}{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+<h3 style="margin:16px 0 4px;color:var(--dim);font-size:13px;text-transform:uppercase">Bench (in order)</h3>
+<div class="bench">{% for p in r.bench %}{{ card(p) }}{% endfor %}</div>
+
+{% if tplans and tplans.plans %}
+<div class="card" style="margin-top:16px">
+  <h3>Transfer plans vs your imported squad (net of −4 hits)</h3>
+  <table>
+    <tr><th>Plan</th><th>Moves</th><th>Hits</th><th>Net XI pts</th><th>Gain</th><th></th></tr>
+    {% for pl in tplans.plans %}
+    <tr>
+      <td>{{ pl.transfers|length }} transfer{{ 's' if pl.transfers|length != 1 }}</td>
+      <td>{% for m in pl.transfers %}{{ m.out.web_name }} → <b>{{ m.in.web_name }}</b>{{ '; ' if not loop.last }}{% else %}keep squad{% endfor %}</td>
+      <td>{{ '−%d'|format(pl.hits|int) if pl.hits else '0' }}</td>
+      <td>{{ pl.net_points }}</td>
+      <td class="{{ 'gain-pos' if pl.gain >= 0 else 'gain-neg' }}">{{ '%+.2f' % pl.gain }}</td>
+      <td>{{ '✅ best' if loop.first else ('' if pl.recommended else 'not worth the hit') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% elif state %}
+<div class="card" style="margin-top:16px"><h3>Transfers</h3>
+  <div class="err">{{ tplans.error if tplans else 'No transfer analysis available.' }}</div></div>
+{% endif %}
+
+{% if chips %}
+<div class="card" style="margin-top:16px">
+  <h3>Chip advice (max one per GW)</h3>
+  <table>
+    <tr><th>Chip</th><th>Projected value</th><th>Verdict</th><th>Note</th></tr>
+    {% for c in chips %}
+    <tr>
+      <td><b>{{ c.chip }}</b></td>
+      <td>{{ c.gain }} pts</td>
+      <td class="{{ 'chip-rec' if c.recommend else 'chip-no' }}">{{ 'PLAY IT' if c.recommend else 'hold' }}</td>
+      <td style="color:var(--dim)">{{ c.note }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div style="margin-top:14px"><a href="/export.json" style="color:var(--accent);font-size:13px">⬇ Export squad as JSON</a></div>

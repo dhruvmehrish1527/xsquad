@@ -1,0 +1,31 @@
+<div class="ok" style="margin-bottom:8px">
+  Imported <b>"{{ team_name }}"</b>{% if manager %} ({{ manager }}){% endif %} —
+  GW{{ state.gameweek }} · bank £{{ '%.1f' % (state.bank / 10) }}m ·
+  squad value £{{ '%.1f' % (squad_value / 10) }}m ·
+  {{ state.free_transfers }} free transfer{{ 's' if state.free_transfers != 1 }}
+</div>
+{% if missing %}
+<div class="err">⚠ {{ missing }} player(s) could not be matched to current FPL data.</div>
+{% endif %}
+<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:4px">
+  <tr style="color:var(--dim)">
+    <th style="text-align:left;padding:3px 6px">Pos</th>
+    <th style="text-align:left;padding:3px 6px">Player</th>
+    <th style="text-align:left;padding:3px 6px">Club</th>
+    <th style="text-align:right;padding:3px 6px">Price</th>
+    <th style="text-align:right;padding:3px 6px">Proj.</th>
+  </tr>
+  {% for p in picks %}
+  <tr style="border-top:1px solid var(--line)">
+    <td style="padding:3px 6px;color:var(--dim)">{{ p.pos }}</td>
+    <td style="padding:3px 6px;font-weight:600">{{ p.web_name }}
+      {% if p.flag %}<span style="color:#ffb020" title="{{ p.flag }}">⚠</span>{% endif %}</td>
+    <td style="padding:3px 6px;color:var(--dim)">{{ p.team_name }}</td>
+    <td style="padding:3px 6px;text-align:right">£{{ '%.1f' % p.price }}m</td>
+    <td style="padding:3px 6px;text-align:right;color:var(--accent)">{{ '%.2f' % p.score }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<div style="color:var(--dim);font-size:12px;margin-top:6px">
+  Now click <b>Build optimal squad</b> to get transfer plans and chip advice for this squad.
+</div>

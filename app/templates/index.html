@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>xSquad</title>
+<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+<style>
+  :root { --pitch:#2d8a4e; --dark:#1a1d24; --card:#242833; --line:#3a4050;
+          --accent:#00ff87; --purple:#37003c; --text:#e8eaf0; --dim:#9aa1b3; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+         background:var(--dark); color:var(--text); }
+  header { background:var(--purple); padding:14px 24px; display:flex;
+           align-items:center; gap:16px; }
+  header h1 { margin:0; font-size:20px; color:var(--accent); }
+  header .sub { color:#cbb3ce; font-size:12px; }
+  main { max-width:1180px; margin:0 auto; padding:20px; }
+  .controls { display:grid; grid-template-columns:1fr 2.2fr; gap:14px; margin-bottom:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .card h3 { margin:0 0 10px; font-size:13px; text-transform:uppercase;
+             letter-spacing:.06em; color:var(--dim); }
+  label { font-size:12px; color:var(--dim); display:block; margin-bottom:2px; }
+  input,select { background:var(--dark); color:var(--text); border:1px solid var(--line);
+                 border-radius:6px; padding:7px 9px; font-size:13px; width:100%; }
+  .row { display:flex; gap:10px; align-items:end; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:72px; }
+  select[name="force"] { min-width:130px; }
+  button { background:var(--accent); color:#04331c; border:0; border-radius:6px;
+           padding:9px 16px; font-weight:700; font-size:13px; cursor:pointer; }
+  button.secondary { background:var(--line); color:var(--text); }
+  .ok { color:var(--accent); font-size:13px; margin-top:8px; }
+  .err { color:#ff6b81; font-size:13px; margin-top:8px; }
+  input.w-bad { border-color:#ff6b81; color:#ff6b81; }
+  label.w-bad { color:#ff6b81; }
+  input.w-warn { border-color:#ffb020; color:#ffb020; }
+  label.w-warn { color:#ffb020; }
+  .src-status { display:flex; gap:16px; margin-top:10px; font-size:11.5px; color:var(--dim); }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; }
+  .dot.ok { background:var(--accent); }
+  .dot.warn { background:#ffb020; }
+  .dot.bad { background:#ff6b81; }
+  .src-note { margin-top:6px; font-size:11.5px; color:#ff6b81; }
+  .keys-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px; }
+  .src-status { flex-wrap:wrap; }
+  #result { margin-top:8px; }
+  .htmx-request.htmx-indicator, .htmx-request .htmx-indicator { display:inline; }
+  .htmx-indicator { display:none; color:var(--dim); font-size:13px; margin-left:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚽ xSquad</h1>
+  <span class="sub">ILP-optimal squads · match-rating-weighted scoring · £{{ budget }}m budget · max 3/club</span>
+</header>
+<main>
+  <div class="controls">
+    <div class="card">
+      <h3>Your FPL team (optional)</h3>
+      <form hx-post="/import" hx-target="#import-msg" class="row">
+        <div><label>Team ID</label>
+          <input name="team_id" type="number" placeholder="e.g. 1234567" value="{{ team_id }}"></div>
+        <button>Import squad</button>
+      </form>
+      <div id="import-msg"></div>
+    </div>
+    {% include "weights_panel.html" %}
+  </div>
+
+  <div class="card">
+    <h3>Optimize</h3>
+    <form hx-post="/optimize" hx-target="#result" hx-indicator="#spin" class="row">
+      <div>
+        <label>Formation — Auto picks the best legal shape; lock one to bias the squad</label>
+        <select name="formation">
+          <option value="auto">Auto (optimizer decides)</option>
+          {% for f in formations %}<option value="{{ f }}">{{ f }} (locked)</option>{% endfor %}
+        </select>
+      </div>
+      <div style="flex:0">
+        <label>Refresh data</label>
+        <select name="force"><option value="false">Use cache</option><option value="true">Force refresh</option></select>
+      </div>
+      <button>Build optimal squad</button>
+      <span id="spin" class="htmx-indicator">⏳ solving ILP…</span>
+    </form>
+  </div>
+
+  <div id="result"></div>
+</main>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<div class="card" id="weights-panel" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+  <h3>Scoring weights (rating-dominant)</h3>
+  <form hx-post="/weights" hx-target="#weights-msg" class="row">
+    {% for s in sources %}
+    <div>
+      <label class="{{ 'w-bad' if s.state == 'bad' else ('w-warn' if s.state == 'warn') }}"
+             title="{{ s.title }}">{{ s.label }}
+        {%- if s.state == 'bad' %} ⚠{% elif s.state == 'warn' %} ◦{% endif %}</label>
+      <input name="w_{{ s.key }}" type="number" step="0.05" min="0" value="{{ s.value }}"
+             class="{{ 'w-bad' if s.state == 'bad' else ('w-warn' if s.state == 'warn') }}"
+             title="{{ s.label }} — source: {{ s.title }}">
+    </div>
+    {% endfor %}
+    <button class="secondary">Save</button>
+  </form>
+  <div id="weights-msg"></div>
+  <div class="src-status">
+    {% for name, state, label in legend %}
+    <span><i class="dot {{ state }}"></i> {{ name }}: {{ label }}</span>
+    {% endfor %}
+  </div>
+  <div class="src-note" style="color:var(--dim)">
+    Amber terms are degraded; red terms have no data. Unavailable terms
+    redistribute their weight automatically — scores always use what's live.
+  </div>
+</div>
