@@ -4,6 +4,20 @@ ILP-optimal Fantasy Premier League squads each gameweek, per the approved
 [SRS](docs/SRS.md) (IEEE 830-1998). (Formerly "FPL Optimizer"; renamed 2026-07-12.)
 Project history and engineering decisions: [retrospective](docs/RETROSPECTIVE.md).
 
+## About this project
+
+I designed, specified, and directed this project — the requirements process,
+data-source decisions (including rejecting an unlicensed scraping approach and
+choosing to build a proprietary rating engine instead), the model philosophy,
+scoring-weight choices, and the validation criteria — with **Claude (Anthropic)
+as an AI pair-programmer for implementation**. Development was spec-driven: an
+IEEE 830-1998 SRS was written and approved before any code, then maintained
+through five change requests as the product evolved. Every predictive model had
+to pass a pre-committed backtest gate before shipping — including one that
+failed on its first attempt and had to be rethought. The full engineering
+process, including the failures and how they were diagnosed and resolved, is
+documented in [docs/RETROSPECTIVE.md](docs/RETROSPECTIVE.md).
+
 ## What it does
 
 - Pulls prices, form, availability/injuries, fixtures and xP from the **official
