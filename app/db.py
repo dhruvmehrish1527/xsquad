@@ -1,10 +1,15 @@
 """SQLite persistence (SW-04, O-4): cache, squad history, settings."""
 import json
+import os
 import sqlite3
 import time
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent / "fpl_optimizer.db"
+# XSQUAD_DB overrides the location so deployments can point at a mounted
+# persistent volume (e.g. /data/fpl_optimizer.db on Fly.io).
+DB_PATH = Path(os.environ.get(
+    "XSQUAD_DB",
+    Path(__file__).resolve().parent.parent / "fpl_optimizer.db"))
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS cache (

@@ -1,0 +1,7 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+fpl_optimizer.db
+docs/
+.DS_Store

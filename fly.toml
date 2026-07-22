@@ -1,0 +1,21 @@
+# Fly.io config for xSquad. Deploy: fly launch --copy-config, then fly deploy.
+app = "xsquad"
+primary_region = "lhr"   # London — closest to the FPL API's origin
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"    # single-user app: sleep when idle (free-friendly)
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"               # ILP over 841 players fits comfortably
+
+[mounts]
+  source = "xsquad_data"
+  destination = "/data"          # SQLite persistence (see XSQUAD_DB in Dockerfile)
