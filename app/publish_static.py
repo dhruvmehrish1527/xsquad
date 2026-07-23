@@ -93,7 +93,7 @@ def main() -> None:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>xSquad — GW{meta['gameweek']} optimal squad</title>
 <style>{CSS}</style></head><body>
-<header><h1>⚽ xSquad</h1><span>ILP-optimal FPL squad · updated weekly by GitHub Actions</span></header>
+<header><h1>⚽ xSquad</h1><span>ILP-optimal FPL squad · rebuilt daily by GitHub Actions</span></header>
 <main>
 <div class="chips">
   <div class="chip">GW <b>{meta['gameweek']}</b></div>
