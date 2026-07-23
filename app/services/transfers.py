@@ -1,6 +1,8 @@
 """Squad import, transfer advice, and chip advice (FR-STATE, FR-TRANSFER, FR-CHIP)."""
 from itertools import combinations
 
+import httpx
+
 from .. import db
 from . import fpl_api, optimizer
 
@@ -11,9 +13,27 @@ MAX_SUGGESTED_TRANSFERS = 3
 # ---------------- squad import (FR-STATE-01..03) ----------------
 
 def import_squad(team_id: int, bs: dict) -> dict:
-    """Fetch the user's current squad + bank + free transfers via public API."""
+    """Fetch the user's current squad + bank + free transfers via public API.
+
+    Raises ValueError with a user-readable diagnosis when the public API has
+    nothing to serve: FPL only publishes picks AFTER a gameweek's deadline,
+    and team IDs are reissued every season.
+    """
     current, _ = fpl_api.current_gameweek(bs)
-    picks = fpl_api.entry_picks(team_id, current)
+    try:
+        picks = fpl_api.entry_picks(team_id, current)
+    except httpx.HTTPStatusError as e:
+        try:
+            fpl_api.entry(team_id)
+        except httpx.HTTPStatusError:
+            raise ValueError(
+                f"no FPL team with ID {team_id} exists this season. Team IDs reset "
+                f"every season — after you create your 2026-27 squad, find the new ID "
+                f"in the URL of your Points page on fantasy.premierleague.com.") from e
+        deadline = (bs["events"][current - 1].get("deadline_time") or "")[:10]
+        raise ValueError(
+            f"team found, but FPL only publishes squads after the gameweek deadline "
+            f"({deadline}). Import will work once GW{current} is underway.") from e
     hist = picks.get("entry_history", {})
     state = {
         "team_id": team_id,
