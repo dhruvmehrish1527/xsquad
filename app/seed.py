@@ -20,17 +20,22 @@ CACHE_KEYS = ["custom:ratings"]
 
 
 def load_if_needed() -> bool:
-    """Populate an empty DB from the seed file. Returns True if seeded."""
-    if db.kv_get("custom_approved") is not None or not SEED_PATH.exists():
+    """Fill in any seed keys the DB doesn't have yet. Per-key, so a value
+    already computed in this environment (e.g. a backtest-gate verdict) is
+    never overwritten by the seed. Returns True if anything was loaded."""
+    if not SEED_PATH.exists():
         return False
     data = json.loads(SEED_PATH.read_text())
+    loaded = False
     for k, v in data.get("kv", {}).items():
-        if v is not None:
+        if v is not None and db.kv_get(k) is None:
             db.kv_set(k, v)
+            loaded = True
     for k, v in data.get("cache", {}).items():
-        if v is not None:
+        if v is not None and db.cache_get(k) is None:
             db.cache_put(k, v)
-    return True
+            loaded = True
+    return loaded
 
 
 def export() -> None:

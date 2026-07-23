@@ -177,6 +177,9 @@ def sweep():
         if best is None or mean > best[1]:
             best = (w, mean)
         print(f"  rating {w:.1f} / fixture {1 - w:.1f} : {mean:+.4f}  {bar}")
+    if best is None:
+        print("No data yet this season — sweep unavailable.")
+        return None
     print(f"\nBest testable blend: rating {best[0]:.1f} / fixture {1 - best[0]:.1f} "
           f"(Spearman {best[1]:+.4f})")
     return best
@@ -216,6 +219,10 @@ def calibrate():
             ys.append(sum(m["points"] for m in played))
 
     n = len(xs)
+    if n < 200:   # pre-season / early season: keep whatever calibration exists
+        print(f"Calibration skipped: only {n} player-GWs of data this season "
+              f"(need 200). Existing calibration (or seed) kept.")
+        return db.kv_get("points_calibration")
     mx, my = statistics.mean(xs), statistics.mean(ys)
     b = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / \
         sum((x - mx) ** 2 for x in xs)
