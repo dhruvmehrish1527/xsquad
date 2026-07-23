@@ -12,6 +12,10 @@ from .services import fpl_api, ratings, scoring, optimizer, transfers
 app = FastAPI(title="xSquad")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
+# Ephemeral-disk hosts (HF Spaces): restore engine ratings/calibration on boot.
+from . import seed as _seed  # noqa: E402
+_seed.load_if_needed()
+
 
 # ---------------- data assembly ----------------
 

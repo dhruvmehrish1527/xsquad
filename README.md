@@ -1,3 +1,13 @@
+---
+title: xSquad
+emoji: ⚽
+colorFrom: purple
+colorTo: green
+sdk: docker
+app_port: 8080
+pinned: false
+---
+
 # xSquad
 
 ILP-optimal Fantasy Premier League squads each gameweek, per the approved
