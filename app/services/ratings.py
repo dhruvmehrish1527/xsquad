@@ -16,17 +16,25 @@ def _season_from_bootstrap(bs: dict) -> int:
         return 2025
 
 
-def _bps_pseudo_rating(p: dict) -> float | None:
-    """Map season BPS-per-90 onto the familiar ~5.5-8.5 rating scale.
+PRIOR_RATING = 5.74      # neutral prior (matches scoring.UNRATED_PRIOR on 0-1 scale)
+SHRINK_MINUTES = 900     # ~10 full matches of evidence for full confidence
 
-    BPS is FPL's official per-match performance index (~40 actions). Season
-    aggregate per-90 is the zero-extra-requests fallback signal.
+
+def _bps_pseudo_rating(p: dict) -> float | None:
+    """Map season BPS-per-90 onto the familiar ~5.5-8.5 rating scale,
+    shrunk toward a neutral prior in proportion to sample size (spec §7).
+
+    Without shrinkage, per-90 stats on tiny samples dominate: a keeper whose
+    only 90 minutes were one clean-sheet game out-rated Haaland's 2,953
+    minutes, filling the pre-season squad with fringe players.
     """
     minutes = p.get("minutes") or 0
-    if minutes < 90:
+    if minutes <= 0:
         return None
     bps90 = (p.get("bps") or 0) * 90 / minutes
-    return round(5.5 + min(3.0, max(0.0, bps90) / 12.0), 2)
+    raw = 5.5 + min(3.0, max(0.0, bps90) / 12.0)
+    shrunk = (minutes * raw + SHRINK_MINUTES * PRIOR_RATING) / (minutes + SHRINK_MINUTES)
+    return round(shrunk, 2)
 
 
 def attach_ratings(players: list[dict], teams: dict[int, dict], bs: dict,
