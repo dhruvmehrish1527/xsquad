@@ -43,11 +43,21 @@ def attach_ratings(players: list[dict], teams: dict[int, dict], bs: dict,
     # Primary: our own engine (RATING_SPEC.md) — keyed by FPL element id,
     # so no name matching is needed. Populate via `python -m app.backtest`
     # or `python -m app.services.custom_rating --fetch`.
+    season = _season_from_bootstrap(bs)
+    season_label = f"{season}-{(season + 1) % 100:02d}"
     pub = custom_rating.published()
     # Season guard: FPL reassigns player IDs each season, so ratings published
     # for a previous season must never attach to the current bootstrap.
-    if pub and pub.get("season") != _season_from_bootstrap(bs):
+    if pub and pub.get("season") != season:
         pub = None
+    # Why the engine isn't active — surfaced in the fallback label so the
+    # status explains the PRIMARY source's state, not a mid-chain detail.
+    if pub is None or not pub.get("ratings"):
+        engine_why = f"custom engine awaiting {season_label} matches"
+    elif not db.kv_get("custom_approved", False):
+        engine_why = "custom engine inactive: backtest gate not passed"
+    else:
+        engine_why = ""
     if pub and pub.get("ratings") and db.kv_get("custom_approved", False):
         rmap = {int(k): v for k, v in pub["ratings"].items()}
         matched = 0
@@ -59,9 +69,10 @@ def attach_ratings(players: list[dict], teams: dict[int, dict], bs: dict,
         db.kv_set("rating_status", {"state": meta["state"], "label": meta["label"]})
         return meta
 
-    # Secondary: API-Football per-match ratings, last-5 recency-weighted.
+    # Secondary: API-Football per-match ratings (dormant since CR-4 unless a
+    # key was configured out-of-band; the UI no longer offers key entry).
     if api_football.enabled():
-        rows = api_football.get_recent_ratings(_season_from_bootstrap(bs), force=force)
+        rows = api_football.get_recent_ratings(season, force=force)
         if rows:
             matched = matching.attach_fotmob_ratings(players, rows, teams)
             coverage = db.kv_get("af_coverage", "")
@@ -69,12 +80,9 @@ def attach_ratings(players: list[dict], teams: dict[int, dict], bs: dict,
             meta = {"source": "api-football", "matched": matched, "state": "ok", "label": label}
             db.kv_set("rating_status", {"state": meta["state"], "label": meta["label"]})
             return meta
-        err = db.kv_get("af_last_error", "")
-        fallback_reason = f"API-Football unavailable{' — ' + err if err else ''}"
-    else:
-        fallback_reason = "no API-Football key"
 
-    # Fallback: FPL BPS pseudo-rating from bootstrap (no extra requests).
+    # Fallback: FPL BPS pseudo-rating from bootstrap (no extra requests),
+    # shrunk toward the prior by sample size.
     matched = 0
     for p in players:
         r = _bps_pseudo_rating(p)
@@ -82,7 +90,7 @@ def attach_ratings(players: list[dict], teams: dict[int, dict], bs: dict,
         p["fotmob_match_confidence"] = 100 if r is not None else 0
         matched += r is not None
     meta = {"source": "bps", "matched": matched, "state": "warn",
-            "label": f"FPL BPS fallback ({fallback_reason}; {matched} rated)"}
+            "label": f"last-season BPS bridge — {engine_why} ({matched} rated)"}
     db.kv_set("rating_status", {"state": meta["state"], "label": meta["label"]})
     return meta
 
