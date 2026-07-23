@@ -64,7 +64,7 @@ def _weighted_last5(matches: list[dict], field: str, upto_round: int) -> float |
 def run() -> dict:
     bs = fpl_api.bootstrap()
     fixtures = fpl_api.fixtures()
-    per_player = custom_rating.compute_all(bs["elements"], fixtures)
+    per_player = custom_rating.compute_all(bs, fixtures)
     max_round = max((m["round"] for ms in per_player.values() for m in ms), default=0)
     print(f"Backtesting GW{START_GW}-{max_round} over {len(per_player)} players…")
 
@@ -137,7 +137,7 @@ def sweep():
     retroactively and is excluded (see module docstring)."""
     bs = fpl_api.bootstrap()
     fixtures = fpl_api.fixtures()
-    per_player = custom_rating.compute_all(bs["elements"], fixtures)
+    per_player = custom_rating.compute_all(bs, fixtures)
     team_of = {e["id"]: e["team"] for e in bs["elements"]}
     ease = _team_ease_by_round(fixtures)
     max_round = max((m["round"] for ms in per_player.values() for m in ms), default=0)
@@ -191,7 +191,7 @@ def calibrate():
     from .main import load_weights
     bs = fpl_api.bootstrap()
     fixtures = fpl_api.fixtures()
-    per_player = custom_rating.compute_all(bs["elements"], fixtures)
+    per_player = custom_rating.compute_all(bs, fixtures)
     team_of = {e["id"]: e["team"] for e in bs["elements"]}
     ease = _team_ease_by_round(fixtures)
     max_round = max((m["round"] for ms in per_player.values() for m in ms), default=0)

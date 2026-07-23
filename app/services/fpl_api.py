@@ -78,16 +78,26 @@ def entry_transfers_state(team_id: int) -> dict | None:
 # ---------------- derived views ----------------
 
 def current_gameweek(bs: dict) -> tuple[int, int]:
-    """Returns (current_or_last_finished, next_gw) from bootstrap events."""
-    current, nxt = 1, 1
-    for ev in bs["events"]:
-        if ev.get("is_current"):
-            current = ev["id"]
-        if ev.get("is_next"):
-            nxt = ev["id"]
-    if nxt <= current:
-        nxt = min(current + 1, 38)
+    """Returns (current_or_last_finished, next_gw) from bootstrap events.
+
+    Pre-season, FPL marks GW1 as is_next and nothing as is_current — the
+    target must be GW1, not GW2 (bug: Palmer showed his second fixture)."""
+    current = next((ev["id"] for ev in bs["events"] if ev.get("is_current")), None)
+    nxt = next((ev["id"] for ev in bs["events"] if ev.get("is_next")), None)
+    if nxt is None:                      # season over: no next GW
+        nxt = min(current + 1, 38) if current else 1
+    if current is None:                  # pre-season: nothing played yet
+        current = nxt
     return current, nxt
+
+
+def season_of(bs: dict) -> int:
+    """Season start year (2026 == 2026-27), from GW1's deadline. Player IDs
+    are reassigned every season, so all ID-keyed data must be season-scoped."""
+    try:
+        return int(bs["events"][0]["deadline_time"][:4])
+    except (KeyError, IndexError, TypeError, ValueError):
+        return 0
 
 
 def team_map(bs: dict) -> dict[int, dict]:

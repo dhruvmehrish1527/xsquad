@@ -36,6 +36,10 @@ def attach_ratings(players: list[dict], teams: dict[int, dict], bs: dict,
     # so no name matching is needed. Populate via `python -m app.backtest`
     # or `python -m app.services.custom_rating --fetch`.
     pub = custom_rating.published()
+    # Season guard: FPL reassigns player IDs each season, so ratings published
+    # for a previous season must never attach to the current bootstrap.
+    if pub and pub.get("season") != _season_from_bootstrap(bs):
+        pub = None
     if pub and pub.get("ratings") and db.kv_get("custom_approved", False):
         rmap = {int(k): v for k, v in pub["ratings"].items()}
         matched = 0

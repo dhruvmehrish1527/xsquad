@@ -47,14 +47,17 @@ CAPS = {"A": 1.6, "B": 1.4, "C": 0.6, "D": 1.5, "E": 0.9, "F": 1.8}
 
 # ---------------- ingestion ----------------
 
-def fetch_all_histories(player_ids: list[int], force: bool = False,
+def fetch_all_histories(player_ids: list[int], season: int, force: bool = False,
                         sleep: float = 0.03, log_every: int = 100) -> int:
-    """Fetch + cache element-summary history for each player. Returns #fetched."""
+    """Fetch + cache element-summary history for each player. Returns #fetched.
+
+    Cache keys are season-scoped: FPL reassigns element IDs every season, so
+    an unscoped id-keyed cache would silently mix players across seasons."""
     fetched = 0
     with httpx.Client(headers={"User-Agent": settings.user_agent},
                       timeout=30.0, follow_redirects=True) as client:
         for i, pid in enumerate(player_ids):
-            key = f"fpl:summary:{pid}"
+            key = f"fpl:summary:{season}:{pid}"
             if not force and db.cache_get(key) is not None:
                 continue
             r = client.get(f"https://fantasy.premierleague.com/api/element-summary/{pid}/")
@@ -146,11 +149,15 @@ def _fixture_fdr_map(fixtures: list) -> dict[int, tuple]:
             for fx in fixtures}
 
 
-def compute_all(elements: list[dict], fixtures: list) -> dict[int, list[dict]]:
+def compute_all(bs: dict, fixtures: list) -> dict[int, list[dict]]:
     """player_id -> [{round, kickoff, rating, minutes, points, bps, ict}, ...]
-    Ratings calibrated so surplus SD -> TARGET_SD (spec §5-6)."""
+    Ratings calibrated so surplus SD -> TARGET_SD (spec §5-6). Only reads
+    match histories cached for THIS bootstrap's season (ID reuse guard)."""
+    from . import fpl_api
+    elements = bs["elements"]
+    season = fpl_api.season_of(bs)
     pos_of = {e["id"]: e["element_type"] for e in elements}
-    summaries = db.cache_get_many("fpl:summary:")
+    summaries = db.cache_get_many(f"fpl:summary:{season}:")
     fdr_map = _fixture_fdr_map(fixtures)
 
     parsed: dict[int, list[dict]] = {}
@@ -225,16 +232,18 @@ def effective_form(matches: list[dict], upto_round: int | None = None) -> float 
     return round(f * min(1.0, mins / 90), 2)
 
 
-def publish(elements: list[dict], fixtures: list) -> dict:
-    """Compute + store {player_id: form rating} for the app to consume."""
-    per_player = compute_all(elements, fixtures)
+def publish(bs: dict, fixtures: list) -> dict:
+    """Compute + store {player_id: form rating} for the app to consume.
+    Season-stamped so ratings can never attach across an ID reshuffle."""
+    from . import fpl_api
+    per_player = compute_all(bs, fixtures)
     forms = {}
     for pid, matches in per_player.items():
         f = effective_form(matches)
         if f is not None:
             forms[pid] = f
-    payload = {"version": ENGINE_VERSION, "ratings": forms,
-               "n_players": len(forms),
+    payload = {"version": ENGINE_VERSION, "season": fpl_api.season_of(bs),
+               "ratings": forms, "n_players": len(forms),
                "n_matches": sum(len(m) for m in per_player.values())}
     db.cache_put("custom:ratings", payload)
     return payload
@@ -257,12 +266,13 @@ def main():
     fixtures = fpl_api.fixtures()
     elements = bs["elements"]
 
+    season = fpl_api.season_of(bs)
     if args.fetch or args.force:
-        print(f"Fetching element summaries for {len(elements)} players…")
-        n = fetch_all_histories([e["id"] for e in elements], force=args.force)
+        print(f"Fetching element summaries for {len(elements)} players (season {season})…")
+        n = fetch_all_histories([e["id"] for e in elements], season, force=args.force)
         print(f"Fetched {n} new summaries.")
 
-    payload = publish(elements, fixtures)
+    payload = publish(bs, fixtures)
     ratings = payload["ratings"]
     print(f"Engine {payload['version']}: rated {payload['n_players']} players "
           f"over {payload['n_matches']} player-matches.")
